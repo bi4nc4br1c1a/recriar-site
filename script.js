@@ -52,20 +52,40 @@
     f.addEventListener('input', () => { if (f.getAttribute('aria-invalid') === 'true') validate(f); });
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     status.hidden = true;
-    const fields = [...form.querySelectorAll('input, textarea')];
+    const fields = [...form.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), textarea')];
     const invalid = fields.filter((f) => !validate(f));
     if (invalid.length) {
       invalid[0].focus();
       return;
     }
+  
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+  
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new FormData(form)
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || 'Falha no envio');
+  
     track('form_submit', { form: 'contato' });
-    // TODO: enviar os dados ao serviço escolhido (e-mail, CRM, API) usando new FormData(form).
     form.reset();
+    status.textContent = 'Mensagem enviada! A escola responderá assim que possível.';
+  } catch (err) {
+    status.textContent = 'Não foi possível enviar agora. Tente de novo ou fale com a escola pelo WhatsApp.';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Enviar mensagem';
     status.hidden = false;
-  });
+  }
+});
 
   if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const io = new IntersectionObserver((entries) => {
